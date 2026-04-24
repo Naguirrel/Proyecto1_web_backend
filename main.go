@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
@@ -21,10 +22,15 @@ func main() {
 	mux.HandleFunc("/swagger.json", app.swaggerJSONHandler)
 	mux.HandleFunc("/docs", app.swaggerUIHandler)
 
-	log.Println("Backend running on http://localhost:8080")
-	log.Println("Swagger UI available at http://localhost:8080/docs")
+	// 👇 CAMBIO IMPORTANTE
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	if err := http.ListenAndServe(":8080", app.withCORS(mux)); err != nil {
+	log.Println("Backend running on port", port)
+
+	if err := http.ListenAndServe(":"+port, app.withCORS(mux)); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
