@@ -25,6 +25,19 @@ func InitDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("create table: %w", err)
 	}
 
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS ratings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			series_id INTEGER NOT NULL,
+			reviewer TEXT NOT NULL DEFAULT 'Anonymous',
+			score INTEGER NOT NULL CHECK (score >= 1 AND score <= 5),
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY(series_id) REFERENCES series(id) ON DELETE CASCADE
+		);
+	`); err != nil {
+		return nil, fmt.Errorf("create ratings table: %w", err)
+	}
+
 	if err := seedSeriesIfEmpty(db); err != nil {
 		return nil, fmt.Errorf("seed database: %w", err)
 	}
@@ -86,7 +99,7 @@ func seedSeriesIfEmpty(db *sql.DB) error {
 		},
 	}
 
-	for _, item := range seedData {
+	for index, item := range seedData {
 		if _, err := db.Exec(`
 			INSERT INTO series (title, description, episodes, image)
 			VALUES (?, ?, ?, ?)`,
@@ -94,6 +107,19 @@ func seedSeriesIfEmpty(db *sql.DB) error {
 			item.description,
 			item.episodes,
 			item.image,
+		); err != nil {
+			return err
+		}
+
+		if _, err := db.Exec(`
+			INSERT INTO ratings (series_id, reviewer, score)
+			VALUES (?, ?, ?), (?, ?, ?)`,
+			index+1,
+			"Pilot Viewer",
+			4+(index%2),
+			index+1,
+			"Weekend Binger",
+			3+(index%3),
 		); err != nil {
 			return err
 		}
