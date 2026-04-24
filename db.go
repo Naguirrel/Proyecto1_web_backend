@@ -38,6 +38,10 @@ func InitDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("create ratings table: %w", err)
 	}
 
+	if err := migrateLegacySeedData(db); err != nil {
+		return nil, fmt.Errorf("migrate legacy seed data: %w", err)
+	}
+
 	if err := seedSeriesIfEmpty(db); err != nil {
 		return nil, fmt.Errorf("seed database: %w", err)
 	}
@@ -55,49 +59,7 @@ func seedSeriesIfEmpty(db *sql.DB) error {
 		return nil
 	}
 
-	seedData := []struct {
-		title       string
-		description string
-		episodes    int
-		image       string
-	}{
-		{
-			title:       "Nebula High",
-			description: "A sci-fi teen drama set inside a floating academy orbiting Saturn.",
-			episodes:    24,
-			image:       "https://images.unsplash.com/photo-1516849841032-87cbac4d88f7?auto=format&fit=crop&w=900&q=80",
-		},
-		{
-			title:       "Midnight Detectives",
-			description: "Two insomniac investigators solve strange city mysteries after dark.",
-			episodes:    18,
-			image:       "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=900&q=80",
-		},
-		{
-			title:       "Pixel Raiders",
-			description: "Competitive gamers get pulled into the retro arcade world they grew up loving.",
-			episodes:    12,
-			image:       "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80",
-		},
-		{
-			title:       "Cafe Aurora",
-			description: "A cozy ensemble story about artists, bakers, and friendships in a mountain town.",
-			episodes:    30,
-			image:       "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80",
-		},
-		{
-			title:       "Shadow Circuit",
-			description: "An underground robotics league hides secrets that could change the whole country.",
-			episodes:    20,
-			image:       "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=900&q=80",
-		},
-		{
-			title:       "Ocean Street 9",
-			description: "Neighbors on a beachside block navigate love, family, and surprise second chances.",
-			episodes:    16,
-			image:       "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80",
-		},
-	}
+	seedData := realSeriesSeedData()
 
 	for index, item := range seedData {
 		if _, err := db.Exec(`
@@ -126,4 +88,91 @@ func seedSeriesIfEmpty(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func migrateLegacySeedData(db *sql.DB) error {
+	replacements := []struct {
+		oldTitle string
+		newData  struct {
+			title       string
+			description string
+			episodes    int
+			image       string
+		}
+	}{
+		{oldTitle: "Nebula High", newData: realSeriesSeedData()[0]},
+		{oldTitle: "Midnight Detectives", newData: realSeriesSeedData()[1]},
+		{oldTitle: "Pixel Raiders", newData: realSeriesSeedData()[2]},
+		{oldTitle: "Cafe Aurora", newData: realSeriesSeedData()[3]},
+		{oldTitle: "Shadow Circuit", newData: realSeriesSeedData()[4]},
+		{oldTitle: "Ocean Street 9", newData: realSeriesSeedData()[5]},
+	}
+
+	for _, item := range replacements {
+		if _, err := db.Exec(`
+			UPDATE series
+			SET title = ?, description = ?, episodes = ?, image = ?
+			WHERE title = ?`,
+			item.newData.title,
+			item.newData.description,
+			item.newData.episodes,
+			item.newData.image,
+			item.oldTitle,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func realSeriesSeedData() []struct {
+	title       string
+	description string
+	episodes    int
+	image       string
+} {
+	return []struct {
+		title       string
+		description string
+		episodes    int
+		image       string
+	}{
+		{
+			title:       "Breaking Bad",
+			description: "A chemistry teacher turned meth producer descends into the criminal underworld.",
+			episodes:    62,
+			image:       "https://placehold.co/600x900?text=Breaking+Bad",
+		},
+		{
+			title:       "Stranger Things",
+			description: "A group of kids in Hawkins faces supernatural forces, secret experiments, and the Upside Down.",
+			episodes:    34,
+			image:       "https://placehold.co/600x900?text=Stranger+Things",
+		},
+		{
+			title:       "Game of Thrones",
+			description: "Noble families battle for power in a brutal fantasy world where dragons and danger return.",
+			episodes:    73,
+			image:       "https://placehold.co/600x900?text=Game+of+Thrones",
+		},
+		{
+			title:       "The Office",
+			description: "A mockumentary workplace comedy following the employees of Dunder Mifflin.",
+			episodes:    201,
+			image:       "https://placehold.co/600x900?text=The+Office",
+		},
+		{
+			title:       "Dark",
+			description: "Families in a German town uncover a time travel mystery that spans generations.",
+			episodes:    26,
+			image:       "https://placehold.co/600x900?text=Dark",
+		},
+		{
+			title:       "The Crown",
+			description: "A historical drama chronicling the reign of Queen Elizabeth II across decades.",
+			episodes:    60,
+			image:       "https://placehold.co/600x900?text=The+Crown",
+		},
+	}
 }
