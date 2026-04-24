@@ -22,7 +22,6 @@ func main() {
 	mux.HandleFunc("/swagger.json", app.swaggerJSONHandler)
 	mux.HandleFunc("/docs", app.swaggerUIHandler)
 
-	// 👇 CAMBIO IMPORTANTE
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
